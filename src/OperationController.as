@@ -134,20 +134,7 @@ package
 			swfFile = swfFiles.pop();
 			if (swfFile) {
 				clear();
-				try
-				{
-					convertSWF(swfFile, false);
-					convertedFiles.push(swfFile.nativePath);
-					setTimeout(nextConvertSWF, 10);
-					
-				} 
-				catch(error:*) 
-				{
-					errorFiles.push(swfFile.nativePath);
-					trace("ERROR parsing file", swfFile.nativePath);
-					trace (error);
-					setTimeout(nextConvertSWF, 10);
-				}
+				convertSWF(swfFile, false);
 			} else {
 				unlock = true;
 				trace("ERROR", errorFiles);
@@ -158,13 +145,35 @@ package
 		
 		private function convertSWF(swfFile:File, checkAni:Boolean = true):void {
 			if (!checkAni || !swfFile.parent.resolvePath(swfFile.name.replace("swf","ani")).exists){
+				trace("convertSWF", swfFile.nativePath);
 				openAndLoadContent(swfFile);
-				parseSwfData();
-				packRectangles();
-				rebuildAtlas();
-				packData();
-				saveAnimation();
+				try
+				{
+					swfDataParser = new SwfDataParser();
+					swfDataParser.addEventListener(Event.COMPLETE, onCompleteBulkSWFParse);
+					swfDataParser.parseSwf(fileContent, false)
+				} 
+				catch(error:*) 
+				{
+					errorFiles.push(swfFile.nativePath);
+					trace("ERROR parsing file", swfFile.nativePath);
+					trace (error);
+					setTimeout(nextConvertSWF, 10);
+				}
 			}
+		}
+		
+	
+		protected function onCompleteBulkSWFParse(event:Event):void {
+			if (fileContent)
+				fileContent.clear();
+			swfDataParser.removeEventListener(Event.COMPLETE, onCompleteBulkSWFParse);
+			packRectangles();
+			rebuildAtlas();
+			packData();
+			saveAnimation();
+			convertedFiles.push(swfFile.nativePath);
+			setTimeout(nextConvertSWF, 10);
 		}
 		
 		public function browseSwf():void 
@@ -178,12 +187,20 @@ package
 		private function onSelectedSWF(e:Event):void 
 		{
 			openAndLoadContent(swfFile);
-			parseSwfData();
+			swfDataParser = new SwfDataParser();
+			swfDataParser.addEventListener(Event.COMPLETE, onCompleteSWFParse);
+			swfDataParser.parseSwf(fileContent, false);
+		}
+		
+		protected function onCompleteSWFParse(event:Event):void {
+			if (fileContent)
+				fileContent.clear();
+			swfDataParser.removeEventListener(Event.COMPLETE, onCompleteSWFParse);
 			packRectangles();
 			rebuildAtlas();
 			packData();
 			saveAnimation();
-			loadAnimation();
+			unpackData();
 		}
 		
 		public function browseAni():void 
@@ -317,13 +334,6 @@ package
 			
 			maxRectPacker.clearData();
 			maxRectPacker.packRectangles(rectangles, 0, 2);		
-		}
-		
-		private function parseSwfData():void 
-		{
-			swfDataParser = new SwfDataParser();
-			swfDataParser.parseSwf(fileContent, false);
-			fileContent.clear();
 		}
 		
 		private function openAndLoadContent(file:File):void 
