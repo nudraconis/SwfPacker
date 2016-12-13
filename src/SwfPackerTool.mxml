@@ -43,6 +43,7 @@
 				_image.source = operationController.bitmapData;
 				_window.width = operationController.bitmapData.width;
 				_window.height = operationController.bitmapData.height + 20;
+				_window.title = String(operationController.bitmapData.width) + " x " + String(operationController.bitmapData.height);
 				_window.addElement(_image);
 				_window.open(true);
 			}
